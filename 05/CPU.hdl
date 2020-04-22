@@ -1,0 +1,89 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/CPU.hdl
+
+/**
+ * The Hack CPU (Central Processing unit), consisting of an ALU,
+ * two registers named A and D, and a program counter named PC.
+ * The CPU is designed to fetch and execute instructions written in 
+ * the Hack machine language. In particular, functions as follows:
+ * Executes the inputted instruction according to the Hack machine 
+ * language specification. The D and A in the language specification
+ * refer to CPU-resident registers, while M refers to the external
+ * memory location addressed by A, i.e. to Memory[A]. The inM input 
+ * holds the value of this location. If the current instruction needs 
+ * to write a value to M, the value is placed in outM, the address 
+ * of the target location is placed in the addressM output, and the 
+ * writeM control bit is asserted. (When writeM==0, any value may 
+ * appear in outM). The outM and writeM outputs are combinational: 
+ * they are affected instantaneously by the execution of the current 
+ * instruction. The addressM and pc outputs are clocked: although they 
+ * are affected by the execution of the current instruction, they commit 
+ * to their new values only in the next time step. If reset==1 then the 
+ * CPU jumps to address 0 (i.e. pc is set to 0 in next time step) rather 
+ * than to the address resulting from executing the current instruction. 
+ */
+
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+    // Put your code here:
+    	//C1 decoder
+	And16(a=instruction,b=instruction,out[0..2]=jjj,out[0]=j3,out[1]=j2,out[2]=j1,out[3]=d3,out[4]=d2,out[5]=d1,out[6]=c6,out[7]=c5,out[8]=c4,out[9]=c3,out[10]=c2,out[11]=c1,out[12]=a,out[13..14]=xx,out[15]=i);
+	//C2 D or instruction
+	Mux16(a=instruction,b=outALU,sel=i,out=inAregister);
+	//C3 Aregister
+	Not(in=i,out=Ainst);//i=0のときA命令
+	And(a=i,b=d1,out=Cinstandd1);
+	Or(a=Ainst,b=Cinstandd1,out=loadAregister);//if Ainst or (Cinst and d1=1) then loadAregister = 1
+	ARegister(in=inAregister,load=loadAregister,out=outAregister,out[0..14]=addressM,out=inPC);//メモリ、PCにも出力
+	//C4 A/M
+	And(a=i,b=a,out=selAM);
+	Mux16(a=outAregister,b=inM,sel=selAM,out=AorM);
+	//C5 loadD
+	And(a=i,b=d2,out=loadDregister);
+	DRegister(in=outALU,load=loadDregister,out=D);
+	//C6 ALU controll
+	ALU(x=D,y=AorM,zx=c1,nx=c2,zy=c3,ny=c4,f=c5,no=c6,out=outALU,out=outM,out[15]=selN,out[0..7]=selZero1,out[8..15]=selZero2);
+	//C7 jump
+	And(a=true,b=i,out=load0);
+	DMux8Way(in=load0,sel=jjj,a=load000,b=load001,c=load010,d=load011,e=load100,f=load101,g=load110,h=load111);
+	Mux(a=false,b=false,sel=load000,out=loadPC1);
+	Or8Way(in=selZero1,out=selZero11);
+	Or8Way(in=selZero2,out=selZero22);
+	Or(a=selZero11,b=selZero22,out=selNotzero);
+	Not(in=selNotzero,out=selZero);
+	Not(in=selN,out=selPZero);
+	And(a=selNotzero,b=selPZero,out=selP);
+	Mux(a=false,b=load001,sel=selP,out=loadPC2);
+	Mux(a=false,b=load010,sel=selZero,out=loadPC3);
+	Mux(a=false,b=load011,sel=selPZero,out=loadPC4);
+	Mux(a=false,b=load100,sel=selN,out=loadPC5);
+	Mux(a=false,b=load101,sel=selNotzero,out=loadPC6);
+	Or(a=selZero,b=selN,out=selNZero);
+	Mux(a=false,b=load110,sel=selNZero,out=loadPC7);
+	Mux(a=false,b=true,sel=load111,out=loadPC8);
+	Mux(a=loadPC1,b=loadPC2,sel=j3,out=loadPC12);
+	Mux(a=loadPC3,b=loadPC4,sel=j3,out=loadPC34);
+	Mux(a=loadPC5,b=loadPC6,sel=j3,out=loadPC56);
+	Mux(a=loadPC7,b=loadPC8,sel=j3,out=loadPC78);
+	Mux(a=loadPC12,b=loadPC34,sel=j2,out=loadPC1234);
+	Mux(a=loadPC56,b=loadPC78,sel=j2,out=loadPC5678);
+	Mux(a=loadPC1234,b=loadPC5678,sel=j1,out=loadPC);
+	//C8 writeM
+	And(a=i,b=d3,out=writeM);
+	//C9 Program Counter
+	PC(in=inPC,inc=true,load=loadPC,reset=reset,out[0..14]=pc);
+}

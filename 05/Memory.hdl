@@ -1,0 +1,47 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/Memory.hdl
+
+/**
+ * The complete address space of the Hack computer's memory,
+ * including RAM and memory-mapped I/O. 
+ * The chip facilitates read and write operations, as follows:
+ *     Read:  out(t) = Memory[address(t)](t)
+ *     Write: if load(t-1) then Memory[address(t-1)](t) = in(t-1)
+ * In words: the chip always outputs the value stored at the memory 
+ * location specified by address. If load==1, the in value is loaded 
+ * into the memory location specified by address. This value becomes 
+ * available through the out output from the next time step onward.
+ * Address space rules:
+ * Only the upper 16K+8K+1 words of the Memory chip are used. 
+ * Access to address>0x6000 is invalid. Access to any address in 
+ * the range 0x4000-0x5FFF results in accessing the screen memory 
+ * map. Access to address 0x6000 results in accessing the keyboard 
+ * memory map. The behavior in these addresses is described in the 
+ * Screen and Keyboard chip specifications given in the book.
+ */
+
+CHIP Memory {
+    IN in[16], load, address[15];
+    OUT out[16];
+
+    PARTS:
+    // Put your code here:
+    	Not16(in[0..14]=address,in[15]=false,out[0..12]=Ndress,out[13]=Nd,out[14]=Na);
+	Not16(in[0..12]=Ndress,in[13..15]=false,out[0..12]=dress,out[0..7]=dress1,out[8..12]=dress2);
+	Not(in=Nd,out=d);
+	Not(in=Na,out=a);
+	DMux(in=load,sel=a,a=loada,b=loadb);
+	RAM16K(in=in,address[0..12]=dress,address[13]=d,load=loada,out=out1);//メモリ部分
+	DMux(in=loadb,sel=d,a=loadc,b=loadd);
+	//DMux(in=loadb,sel=d,a[0..12]=SCREEN,b[0..7]=b0to7,b[8..12]=b8to12,b[0..12]=oth);
+	Screen(in=in,load=loadc,address=address[0..12],out=out2);//スクリーン部分
+	Keyboard(out=outKBD);
+	Or8Way(in=dress1,out=sel1);
+	Or8Way(in[0..4]=dress2,in[5..7]=false,out=sel2);
+	Or(a=sel1,b=sel2,out=sel3);
+	Mux16(a=outKBD,b=false,sel=sel3,out=out3);
+	//Register(in=outKBD,load=true,out=out3);//キーボード
+        Mux4Way16(a=out1,b=out1,c=out2,d=out3,sel[0]=d,sel[1]=a,out=out);
+}
