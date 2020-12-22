@@ -70,6 +70,17 @@ class Parser():
             return C_CALL
         if self.current_command[0] in ["add", "sub", "neg", "eq", "gt", "lt", "and", "or", "not"]:
             return C_ARITHMETIC
+
+    def arg1(self):
+        if self.commandType() == C_ARITHMETIC:
+            return self.current_command[0]
+        else:
+            return self.current_command[1]
+
+    def arg2(self):
+        if self.commandType() in [C_PUSH, C_POP, C_FUNCTION, C_CALL]:
+            return self.current_command[2]
+
         """
         command = self.current_command.replace(" ","")
         command = re.sub(r"//.*","",command)
