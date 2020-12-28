@@ -90,17 +90,98 @@ class CodeWriter():
                 self._writeCodes([
                     "@%d" % index,
                     "D=A",
-                    "@SP",
-                    "A=M",
-                    "M=D",
-                    "@SP",
-                    "M=M+1"
                 ])
-            return
-
+                self._pushD()
+                return
+            elif segment in ["local", "argument", "this", "that"]:
+                self._writePush2VirtualSegment(segment, index)
+            elif segment in ["pointer", "temp"]:
+                self._writePush2StaticSegment(segment, index)
+            elif segment == "static":
+                self._writeCodes([
+                    "@%s.%d" %(self.filename, index),
+                    "D=M"
+                ])
+                self._pushD()
+        
         elif command == C_POP:
-            return
-            
+            if segment in ["local", "argument", "this", "that"]:
+                self._writePopFromVirtualSegment(segment, index)
+            elif segment in ["temp", "pointer"]:
+                self._writePopFromStaticSegment(segment, index)
+            elif segment == "static":
+                self._pop2M()
+                self._writeCodes([
+                    "D=M",
+                    "@%s.%d" %(self.filename, index)
+                ])
+                self._writeCode("M=D")
+                    
+    def _writePush2VirtualSegment(self, segment, index):
+        if segment == "local":
+            register_name = "LCL"
+        elif segment == "argument":
+            register_name = "ARG"
+        elif segment == "this":
+            register_name = "THIS"
+        elif segment == "that":
+            register_name = "THAT"
+        self._writeCodes([
+            "@%s" % register_name,
+            "A=M"
+        ])
+        for i in range(index):
+            self._writeCode("A=A+1")
+        self._writeCode("D=M")
+        self._pushD()
+    
+    def _writePush2StaticSegment(self, segment, index):
+        if segment == "temp":
+            base_address = TEMP_BASE_ADDRESS
+        elif segment == "pointer":
+            base_address = POINTER_BASE_ADDRESS
+        self._writeCodes([
+            "@%d" % base_address
+        ])
+        for i in range(index):
+            self._writeCode("A=A+1")
+        self._writeCode("D=M")
+        self._pushD()
+ 
+    def _writePopFromVirtualSegment(self, segment, index):
+        if segment == "local":
+            register_name = "LCL"
+        elif segment == "argument":
+            register_name = "ARG"
+        elif segment == "this":
+            register_name = "THIS"
+        elif segment == "that":
+            register_name = "THAT"
+        self._pop2M()
+        self._writeCodes([
+            "D=M",
+            "@%s" %register_name,
+            "A=M"
+        ])
+        for i in range(index):
+            self._writeCode("A=A+1")
+        self._writeCode("M=D")
+        return
+
+    def _writePopFromStaticSegment(self, segment, index):
+        if segment == "pointer":
+            base_address = POINTER_BASE_ADDRESS
+        elif segment == "temp":
+            base_address = TEMP_BASE_ADDRESS
+        self._pop2M()
+        self._writeCodes([
+            "D=M",
+            "@%d" %base_address
+        ])
+        for i in range(index):
+            self._writeCode("A=A+1")
+        self._writeCode("M=D")
+        return
 
     def _writeCode(self, code):
         self.f.write(code + "\n")

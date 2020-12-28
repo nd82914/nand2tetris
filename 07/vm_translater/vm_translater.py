@@ -32,9 +32,9 @@ def _translate_file(file_path, cw):
             if ps.commandType() == C_ARITHMETIC:
                 cw.writeArithmetic(ps.arg1())
             elif ps.commandType() == C_PUSH:
-                cw.writePushPop(ps.commandType(),ps.arg1() ,ps.arg2())
+                cw.writePushPop(ps.commandType(),ps.arg1(),ps.arg2())
             elif ps.commandType() == C_POP:
-                print("commandType()=", ps.commandType())
+                cw.writePushPop(ps.commandType(),ps.arg1(),ps.arg2())
             ps.advance()
 
 if __name__ == "__main__":
